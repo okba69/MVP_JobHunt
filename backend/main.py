@@ -59,7 +59,7 @@ def get_jobs(
     if contract_type:
         query = query.filter(JobOffer.contract_type.ilike(f"%{contract_type}%"))
 
-    return query.order_by(JobOffer.id.desc()).limit(150).all()
+    return query.order_by(JobOffer.id.desc()).all()
 
 
 # ─── Helpers : Cache intelligent ──────────────────────────────────────────────

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, ChevronRight, Briefcase, MapPin, Calendar, Building2, MousePointerClick, Search, Loader2, RefreshCcw, Filter } from "lucide-react";
+import { CheckCircle2, ChevronRight, Briefcase, MapPin, Calendar, Building2, MousePointerClick, Search, Loader2, RefreshCcw, Filter, ExternalLink } from "lucide-react";
 
 export function OffersListBuilder({ onGenerate }: { onGenerate?: (offers: any[]) => void }) {
     const [offers, setOffers] = useState<any[]>([]);
@@ -278,6 +278,19 @@ export function OffersListBuilder({ onGenerate }: { onGenerate?: (offers: any[])
                                 <div className="flex items-center text-xs">
                                     {offer.published_date}
                                 </div>
+                                {offer.url && (
+                                    <a
+                                        href={offer.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors ml-auto"
+                                        title="Voir l'offre originale"
+                                    >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                        <span className="text-xs">Voir</span>
+                                    </a>
+                                )}
                             </div>
                         </div>
                     ))}
