@@ -1,20 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle2, ChevronRight, Briefcase, MapPin, Calendar, Building2, MousePointerClick } from "lucide-react";
 
-// Mock data based on our scrapers
-const mockOffers = [
-    { id: 1, title: "INGENIEUR EXLOITATION", company: "Engie", location: "Etrez, France", contract: "CDD", date: "28/02/2026", source: "engie-jobs" },
-    { id: 2, title: "Ingénieur d'Exploitation H/F", company: "Engie", location: "Echirolles, France", contract: "CDI", date: "28/02/2026", source: "engie-jobs" },
-    { id: 3, title: "Ingénieur Data Pipeline", company: "TotalEnergies", location: "Paris, France", contract: "CDI", date: "27/02/2026", source: "totalenergies" },
-    { id: 4, title: "Ingénieur Système Aéronautique", company: "Airbus", location: "Toulouse, France", contract: "CDI", date: "26/02/2026", source: "airbus" },
-    { id: 5, title: "Ingénieur Méthodes Industrielles", company: "Safran", location: "Bordeaux, France", contract: "CDI", date: "25/02/2026", source: "safran" },
-    { id: 6, title: "Chef de Projet Déploiement", company: "EDF", location: "Lyon, France", contract: "CDI", date: "24/02/2026", source: "edf" },
-];
-
 export function OffersListBuilder() {
+    const [offers, setOffers] = useState<any[]>([]);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetch("http://localhost:8000/api/jobs")
+            .then(res => res.json())
+            .then(data => {
+                setOffers(data);
+                setLoading(false);
+            })
+            .catch(err => {
+                console.error("Error fetching jobs:", err);
+                setLoading(false);
+            });
+    }, []);
 
     const toggleSelection = (id: number) => {
         setSelectedIds(prev =>
@@ -24,8 +29,8 @@ export function OffersListBuilder() {
         );
     };
 
-    const selectAllMocks = () => {
-        setSelectedIds(mockOffers.slice(0, 5).map(o => o.id));
+    const selectAllOffers = () => {
+        setSelectedIds(offers.slice(0, 5).map(o => o.id));
     };
 
     const isSelected = (id: number) => selectedIds.includes(id);
@@ -46,7 +51,7 @@ export function OffersListBuilder() {
 
                 <div className="flex flex-col items-end gap-3 text-sm">
                     <button
-                        onClick={selectAllMocks}
+                        onClick={selectAllOffers}
                         className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
                     >
                         Sélection rapide (Top 5)
@@ -60,57 +65,62 @@ export function OffersListBuilder() {
                 </div>
             </div>
 
-            {/* Grid of beautifully crafted cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-32">
-                {mockOffers.map((offer) => (
-                    <div
-                        key={offer.id}
-                        onClick={() => toggleSelection(offer.id)}
-                        className={`
+            {loading ? (
+                <div className="flex justify-center items-center h-64 text-gray-500">
+                    Chargement des offres...
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-32">
+                    {offers.map((offer) => (
+                        <div
+                            key={offer.id}
+                            onClick={() => toggleSelection(offer.id)}
+                            className={`
               relative group flex flex-col p-6 rounded-2xl border transition-all duration-300 cursor-pointer overflow-hidden
               ${isSelected(offer.id)
-                                ? "border-blue-500/50 bg-[#0a0a0a] shadow-[0_8px_30px_rgba(59,130,246,0.15)] -translate-y-1"
-                                : "border-white/5 bg-[#0a0a0a] hover:border-white/10 hover:bg-[#0f0f0f] hover:-translate-y-0.5 hover:shadow-2xl"}
+                                    ? "border-blue-500/50 bg-[#0a0a0a] shadow-[0_8px_30px_rgba(59,130,246,0.15)] -translate-y-1"
+                                    : "border-white/5 bg-[#0a0a0a] hover:border-white/10 hover:bg-[#0f0f0f] hover:-translate-y-0.5 hover:shadow-2xl"}
               ${!isSelected(offer.id) && isMaxReached ? "opacity-40 grayscale-[50%] cursor-not-allowed hover:-translate-y-0" : ""}
             `}
-                    >
-                        {/* Subtle glass reflection on selected card */}
-                        {isSelected(offer.id) && (
-                            <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent pointer-events-none" />
-                        )}
+                        >
+                            {/* Subtle glass reflection on selected card */}
+                            {isSelected(offer.id) && (
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent pointer-events-none" />
+                            )}
 
-                        <div className="flex justify-between items-start mb-4 relative z-10">
-                            <div className="flex items-center gap-3">
-                                <div className={`p-0.5 rounded-full bg-[#050505] transition-transform duration-300 ${isSelected(offer.id) ? "scale-110" : "scale-100"}`}>
-                                    <CheckCircle2 className={`w-6 h-6 ${isSelected(offer.id) ? "text-blue-500 fill-blue-500/20" : "text-gray-600 group-hover:text-gray-400"} transition-colors`} />
+                            <div className="flex justify-between items-start mb-4 relative z-10">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-0.5 rounded-full bg-[#050505] transition-transform duration-300 ${isSelected(offer.id) ? "scale-110" : "scale-100"}`}>
+                                        <CheckCircle2 className={`w-6 h-6 ${isSelected(offer.id) ? "text-blue-500 fill-blue-500/20" : "text-gray-600 group-hover:text-gray-400"} transition-colors`} />
+                                    </div>
+                                    <h3 className="font-medium text-lg text-white tracking-tight line-clamp-1">{offer.title}</h3>
                                 </div>
-                                <h3 className="font-medium text-lg text-white tracking-tight line-clamp-1">{offer.title}</h3>
+
+                                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider font-semibold bg-white/5 text-gray-400 border border-white/5 whitespace-nowrap">
+                                    {offer.source}
+                                </span>
                             </div>
 
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] uppercase tracking-wider font-semibold bg-white/5 text-gray-400 border border-white/5 whitespace-nowrap">
-                                {offer.source}
-                            </span>
-                        </div>
-
-                        <div className="flex flex-wrap items-center text-sm text-gray-400 gap-y-3 gap-x-5 mt-auto relative z-10 pl-9">
-                            <div className="flex items-center font-medium text-gray-300">
-                                <Building2 className="w-4 h-4 mr-2 text-gray-500" />
-                                {offer.company}
-                            </div>
-                            <div className="flex items-center">
-                                <MapPin className="w-4 h-4 mr-2 text-gray-500" />
-                                {offer.location}
-                            </div>
-                            <div className="flex items-center px-2 py-0.5 rounded-md bg-white/5 border border-white/5">
-                                {offer.contract}
-                            </div>
-                            <div className="flex items-center text-xs">
-                                {offer.date}
+                            <div className="flex flex-wrap items-center text-sm text-gray-400 gap-y-3 gap-x-5 mt-auto relative z-10 pl-9">
+                                <div className="flex items-center font-medium text-gray-300">
+                                    <Building2 className="w-4 h-4 mr-2 text-gray-500" />
+                                    {offer.company}
+                                </div>
+                                <div className="flex items-center">
+                                    <MapPin className="w-4 h-4 mr-2 text-gray-500" />
+                                    {offer.location}
+                                </div>
+                                <div className="flex items-center px-2 py-0.5 rounded-md bg-white/5 border border-white/5">
+                                    {offer.contract_type}
+                                </div>
+                                <div className="flex items-center text-xs">
+                                    {offer.published_date}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ))}
-            </div>
+                    ))}
+                </div>
+            )}
 
             {/* Floating Action Bar - Pro Max Glassmorphism */}
             <div className={`

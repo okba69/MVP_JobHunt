@@ -12,5 +12,6 @@ class JobOffer(Base):
     url = Column(String, unique=True, index=True)
     contract_type = Column(String)
     published_date = Column(String)
+    source = Column(String, index=True)
     status = Column(String, default="NEW") # NEW, SELECTED, APPLIED
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
