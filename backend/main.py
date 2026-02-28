@@ -64,7 +64,7 @@ def trigger_scrape(request: ScrapeRequest, db: Session = Depends(get_db)):
     new_offers_count = 0
     for scraper in scrapers:
         try:
-            results = scraper.scrape(keyword=keyword, max_pages=1)
+            results = scraper.scrape(keyword=search_query, max_pages=3)
             for r in results:
                 existing = db.query(JobOffer).filter(JobOffer.url == r.url).first()
                 if not existing:
