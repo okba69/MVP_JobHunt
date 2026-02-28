@@ -9,11 +9,22 @@ export function OffersListBuilder() {
     const [loading, setLoading] = useState(true);
 
     const [keyword, setKeyword] = useState("");
+    const [location, setLocation] = useState("");
+    const [contractType, setContractType] = useState("");
     const [isScraping, setIsScraping] = useState(false);
+    const [searchResultCount, setSearchResultCount] = useState<number | null>(null);
 
     const fetchJobs = () => {
         setLoading(true);
-        fetch("http://localhost:8000/api/jobs")
+
+        const params = new URLSearchParams();
+        if (keyword) params.append("keyword", keyword);
+        if (location) params.append("location", location);
+        if (contractType) params.append("contract_type", contractType);
+
+        const url = `http://localhost:8000/api/jobs?${params.toString()}`;
+
+        fetch(url)
             .then(res => res.json())
             .then(data => {
                 setOffers(data);
@@ -32,14 +43,20 @@ export function OffersListBuilder() {
     const handleScrape = async () => {
         if (!keyword.trim()) return;
         setIsScraping(true);
+        setSearchResultCount(null); // Reset count during new search
         try {
             const res = await fetch("http://localhost:8000/api/scrape", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ keyword })
+                body: JSON.stringify({
+                    keyword: keyword,
+                    location: location,
+                    contract_type: contractType
+                })
             });
             const data = await res.json();
             if (data.status === "success") {
+                setSearchResultCount(data.new_offers_count);
                 fetchJobs(); // Rafraîchir la liste avec les nouvelles offres
             }
         } catch (err) {
@@ -76,30 +93,66 @@ export function OffersListBuilder() {
                     <h2 className="text-3xl font-semibold text-white tracking-tight">Nouvelles Offres</h2>
                     <p className="text-gray-400 text-sm mt-2 max-w-lg">Sélectionnez jusqu'à 5 offres pertinentes. Notre moteur IA générera un lot de candidatures ultra-personnalisées pour chaque sélection.</p>
 
-                    {/* Real-time Scraping Bar */}
-                    <div className="mt-6 flex items-center gap-3">
-                        <div className="relative">
-                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
-                            <input
-                                type="text"
-                                placeholder="Mot-clé (ex: Data Engineer)"
-                                value={keyword}
-                                onChange={(e) => setKeyword(e.target.value)}
-                                className="bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:border-blue-500/50 transition-colors w-72 shadow-inner shadow-white/5"
-                                onKeyDown={(e) => e.key === 'Enter' && handleScrape()}
-                            />
+                    {/* Real-time Scraping Bar with Advanced Filters */}
+                    <div className="mt-6 flex flex-col gap-4">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="relative flex-1 min-w-[200px] max-w-xs">
+                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                                <input
+                                    type="text"
+                                    placeholder="Métier, mots-clés (ex: Data)"
+                                    value={keyword}
+                                    onChange={(e) => setKeyword(e.target.value)}
+                                    className="w-full bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:border-blue-500/50 transition-colors shadow-inner shadow-white/5"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleScrape()}
+                                />
+                            </div>
+                            <div className="relative flex-1 min-w-[180px] max-w-xs">
+                                <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                                <input
+                                    type="text"
+                                    placeholder="Ville, Pays (ex: Paris)"
+                                    value={location}
+                                    onChange={(e) => setLocation(e.target.value)}
+                                    className="w-full bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:border-blue-500/50 transition-colors shadow-inner shadow-white/5"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleScrape()}
+                                />
+                            </div>
+                            <div className="relative min-w-[150px]">
+                                <Briefcase className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                                <select
+                                    value={contractType}
+                                    onChange={(e) => setContractType(e.target.value)}
+                                    className="w-full bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-xl pl-10 pr-10 py-2.5 focus:outline-none focus:border-blue-500/50 transition-colors appearance-none shadow-inner shadow-white/5 cursor-pointer"
+                                >
+                                    <option value="">Tous contrats</option>
+                                    <option value="CDI">CDI</option>
+                                    <option value="CDD">CDD</option>
+                                    <option value="Alternance">Alternance</option>
+                                    <option value="Stage">Stage</option>
+                                    <option value="Freelance">Freelance</option>
+                                </select>
+                            </div>
+                            <button
+                                onClick={handleScrape}
+                                disabled={isScraping || !keyword.trim()}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${isScraping ? 'bg-blue-500/50 text-white/50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow-[0_0_15px_rgba(37,99,235,0.4)]'}`}
+                            >
+                                {isScraping ? (
+                                    <><Loader2 className="w-4 h-4 animate-spin" /> Recherche...</>
+                                ) : (
+                                    <>Lancer le Scraping</>
+                                )}
+                            </button>
                         </div>
-                        <button
-                            onClick={handleScrape}
-                            disabled={isScraping || !keyword.trim()}
-                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isScraping ? 'bg-blue-500/50 text-white/50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow-[0_0_15px_rgba(37,99,235,0.4)]'}`}
-                        >
-                            {isScraping ? (
-                                <><Loader2 className="w-4 h-4 animate-spin" /> Scraping...</>
-                            ) : (
-                                <>Lancer le Scraping</>
-                            )}
-                        </button>
+
+                        {/* Status Message */}
+                        {searchResultCount !== null && !isScraping && (
+                            <div className="text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-lg inline-flex self-start">
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span><strong>{searchResultCount}</strong> nouvelle(s) offre(s) trouvée(s) et ajoutée(s).</span>
+                            </div>
+                        )}
                     </div>
                 </div>
 

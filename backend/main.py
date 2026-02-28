@@ -20,14 +20,40 @@ app.add_middleware(
 
 class ScrapeRequest(BaseModel):
     keyword: str
+    location: str = ""
+    contract_type: str = ""
 
 @app.get("/api/jobs")
-def get_jobs(db: Session = Depends(get_db)):
-    return db.query(JobOffer).order_by(JobOffer.id.desc()).all()
+def get_jobs(
+    keyword: str = "", 
+    location: str = "", 
+    contract_type: str = "", 
+    db: Session = Depends(get_db)
+):
+    query = db.query(JobOffer)
+    
+    if keyword:
+        query = query.filter(
+            (JobOffer.title.ilike(f"%{keyword}%")) | 
+            (JobOffer.company.ilike(f"%{keyword}%"))
+        )
+    if location:
+        query = query.filter(JobOffer.location.ilike(f"%{location}%"))
+    if contract_type:
+        query = query.filter(JobOffer.contract_type.ilike(f"%{contract_type}%"))
+        
+    return query.order_by(JobOffer.id.desc()).all()
 
 @app.post("/api/scrape")
 def trigger_scrape(request: ScrapeRequest, db: Session = Depends(get_db)):
-    keyword = request.keyword
+    # Combine parameters to form a powerful search query
+    parts = [request.keyword]
+    if request.location:
+        parts.append(request.location)
+    if request.contract_type:
+        parts.append(request.contract_type)
+        
+    search_query = " ".join(parts).strip()
     
     scrapers = [
         EDFScraper(),
