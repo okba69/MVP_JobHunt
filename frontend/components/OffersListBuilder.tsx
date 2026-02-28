@@ -53,10 +53,15 @@ export function OffersListBuilder({ onGenerate }: { onGenerate?: (offers: any[])
     }, [keyword, location, contractType]);
 
     // Le scraping est une action SÉPARÉE : va chercher de NOUVELLES offres sur le web
+    const [scrapeMessage, setScrapeMessage] = useState<string | null>(null);
+    const [scrapeStatus, setScrapeStatus] = useState<"success" | "cached" | null>(null);
+
     const handleScrape = async () => {
         if (!scrapeKeyword.trim()) return;
         setIsScraping(true);
         setSearchResultCount(null);
+        setScrapeMessage(null);
+        setScrapeStatus(null);
         try {
             const res = await fetch("http://localhost:8000/api/scrape", {
                 method: "POST",
@@ -64,11 +69,20 @@ export function OffersListBuilder({ onGenerate }: { onGenerate?: (offers: any[])
                 body: JSON.stringify({ keyword: scrapeKeyword })
             });
             const data = await res.json();
-            if (data.status === "success") {
+
+            if (data.status === "cached") {
+                // Le mot-clé a été scrapé récemment — pas besoin de re-scraper
+                setScrapeStatus("cached");
+                setScrapeMessage(data.message);
+                setSearchResultCount(data.total_in_db || 0);
+            } else if (data.status === "success") {
+                setScrapeStatus("success");
                 setSearchResultCount(data.new_offers_count);
-                // Mettre le mot-clé dans le filtre local pour voir les résultats
-                setKeyword(scrapeKeyword);
+                const sources = data.sources?.join(", ") || "";
+                setScrapeMessage(sources ? `Sources: ${sources}` : null);
             }
+            // Mettre le mot-clé dans le filtre local pour voir les résultats
+            setKeyword(scrapeKeyword);
         } catch (err) {
             console.error(err);
         } finally {
@@ -133,10 +147,19 @@ export function OffersListBuilder({ onGenerate }: { onGenerate?: (offers: any[])
                                 )}
                             </button>
                         </div>
-                        {searchResultCount !== null && !isScraping && (
-                            <div className="mt-3 text-sm flex items-center gap-2 text-emerald-400 animate-in fade-in">
-                                <CheckCircle2 className="w-4 h-4" />
-                                <span><strong>{searchResultCount}</strong> nouvelle(s) offre(s) ajoutée(s) à la base.</span>
+                        {scrapeStatus && !isScraping && (
+                            <div className={`mt-3 text-sm flex flex-col gap-1 animate-in fade-in ${scrapeStatus === "cached" ? "text-amber-400" : "text-emerald-400"}`}>
+                                <div className="flex items-center gap-2">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    {scrapeStatus === "cached" ? (
+                                        <span>⚡ {scrapeMessage}</span>
+                                    ) : (
+                                        <span><strong>{searchResultCount}</strong> nouvelle(s) offre(s) ajoutée(s) à la base.</span>
+                                    )}
+                                </div>
+                                {scrapeMessage && scrapeStatus === "success" && (
+                                    <span className="text-xs text-gray-500 ml-6">{scrapeMessage}</span>
+                                )}
                             </div>
                         )}
                     </div>

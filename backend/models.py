@@ -16,3 +16,15 @@ class JobOffer(Base):
     status = Column(String, default="NEW") # NEW, SELECTED, APPLIED
     original_search = Column(String, index=True) # Mémorise les mots-clés utilisés pour le scraping
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+
+class ScrapeCache(Base):
+    """Enregistre quand un mot-clé a été scrapé pour la dernière fois, par source."""
+    __tablename__ = "scrape_cache"
+
+    id = Column(Integer, primary_key=True, index=True)
+    keyword = Column(String, index=True)
+    source = Column(String)  # "indeed", "linkedin", "corporate"
+    last_scraped_at = Column(DateTime, default=datetime.datetime.utcnow)
+    offers_found = Column(Integer, default=0)
+
