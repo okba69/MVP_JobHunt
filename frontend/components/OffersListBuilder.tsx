@@ -1,14 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, ChevronRight, Briefcase, MapPin, Calendar, Building2, MousePointerClick } from "lucide-react";
+import { CheckCircle2, ChevronRight, Briefcase, MapPin, Calendar, Building2, MousePointerClick, Search, Loader2 } from "lucide-react";
 
 export function OffersListBuilder() {
     const [offers, setOffers] = useState<any[]>([]);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
+    const [keyword, setKeyword] = useState("");
+    const [isScraping, setIsScraping] = useState(false);
+
+    const fetchJobs = () => {
+        setLoading(true);
         fetch("http://localhost:8000/api/jobs")
             .then(res => res.json())
             .then(data => {
@@ -19,7 +23,31 @@ export function OffersListBuilder() {
                 console.error("Error fetching jobs:", err);
                 setLoading(false);
             });
+    };
+
+    useEffect(() => {
+        fetchJobs();
     }, []);
+
+    const handleScrape = async () => {
+        if (!keyword.trim()) return;
+        setIsScraping(true);
+        try {
+            const res = await fetch("http://localhost:8000/api/scrape", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ keyword })
+            });
+            const data = await res.json();
+            if (data.status === "success") {
+                fetchJobs(); // Rafraîchir la liste avec les nouvelles offres
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsScraping(false);
+        }
+    };
 
     const toggleSelection = (id: number) => {
         setSelectedIds(prev =>
@@ -47,6 +75,32 @@ export function OffersListBuilder() {
                     </div>
                     <h2 className="text-3xl font-semibold text-white tracking-tight">Nouvelles Offres</h2>
                     <p className="text-gray-400 text-sm mt-2 max-w-lg">Sélectionnez jusqu'à 5 offres pertinentes. Notre moteur IA générera un lot de candidatures ultra-personnalisées pour chaque sélection.</p>
+
+                    {/* Real-time Scraping Bar */}
+                    <div className="mt-6 flex items-center gap-3">
+                        <div className="relative">
+                            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                            <input
+                                type="text"
+                                placeholder="Mot-clé (ex: Data Engineer)"
+                                value={keyword}
+                                onChange={(e) => setKeyword(e.target.value)}
+                                className="bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:border-blue-500/50 transition-colors w-72 shadow-inner shadow-white/5"
+                                onKeyDown={(e) => e.key === 'Enter' && handleScrape()}
+                            />
+                        </div>
+                        <button
+                            onClick={handleScrape}
+                            disabled={isScraping || !keyword.trim()}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${isScraping ? 'bg-blue-500/50 text-white/50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow-[0_0_15px_rgba(37,99,235,0.4)]'}`}
+                        >
+                            {isScraping ? (
+                                <><Loader2 className="w-4 h-4 animate-spin" /> Scraping...</>
+                            ) : (
+                                <>Lancer le Scraping</>
+                            )}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex flex-col items-end gap-3 text-sm">
