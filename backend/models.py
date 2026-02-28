@@ -14,4 +14,5 @@ class JobOffer(Base):
     published_date = Column(String)
     source = Column(String, index=True)
     status = Column(String, default="NEW") # NEW, SELECTED, APPLIED
+    original_search = Column(String, index=True) # Mémorise les mots-clés utilisés pour le scraping
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

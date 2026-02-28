@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from pydantic import BaseModel
 from backend.database import engine, Base, get_db
 from backend.models import JobOffer
@@ -33,16 +34,20 @@ def get_jobs(
     query = db.query(JobOffer)
     
     if keyword:
+        # On recherche dans le titre, l'entreprise, ET dans les mots-clés de scraping associés
         query = query.filter(
-            (JobOffer.title.ilike(f"%{keyword}%")) | 
-            (JobOffer.company.ilike(f"%{keyword}%"))
+            or_(
+                JobOffer.title.ilike(f"%{keyword}%"),
+                JobOffer.company.ilike(f"%{keyword}%"),
+                JobOffer.original_search.ilike(f"%{keyword}%")
+            )
         )
     if location:
         query = query.filter(JobOffer.location.ilike(f"%{location}%"))
     if contract_type:
         query = query.filter(JobOffer.contract_type.ilike(f"%{contract_type}%"))
         
-    return query.order_by(JobOffer.id.desc()).all()
+    return query.order_by(JobOffer.id.desc()).limit(150).all()
 
 @app.post("/api/scrape")
 def trigger_scrape(request: ScrapeRequest, db: Session = Depends(get_db)):
@@ -76,10 +81,18 @@ def trigger_scrape(request: ScrapeRequest, db: Session = Depends(get_db)):
                         contract_type=r.contrat,
                         published_date=r.date_publication,
                         source=r.source,
-                        status="NEW"
+                        status="NEW",
+                        original_search=search_query
                     )
                     db.add(new_job)
                     new_offers_count += 1
+                else:
+                    # Mettre à jour les mots-clés de recherche de l'offre existante pour qu'elle apparaisse
+                    if existing.original_search:
+                        if search_query not in existing.original_search:
+                            existing.original_search += f" | {search_query}"
+                    else:
+                        existing.original_search = search_query
         except Exception as e:
             print(f"Error scraping {scraper.company_name}: {e}")
             
