@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CheckCircle2, ChevronRight, Briefcase, MapPin, Calendar, Building2, MousePointerClick, Search, Loader2 } from "lucide-react";
+import { CheckCircle2, ChevronRight, Briefcase, MapPin, Calendar, Building2, MousePointerClick, Search, Loader2, RefreshCcw, Filter } from "lucide-react";
 
 export function OffersListBuilder({ onGenerate }: { onGenerate?: (offers: any[]) => void }) {
     const [offers, setOffers] = useState<any[]>([]);
@@ -11,6 +11,9 @@ export function OffersListBuilder({ onGenerate }: { onGenerate?: (offers: any[])
     const [keyword, setKeyword] = useState("");
     const [location, setLocation] = useState("");
     const [contractType, setContractType] = useState("");
+
+    // Scraping state (séparé des filtres locaux)
+    const [scrapeKeyword, setScrapeKeyword] = useState("");
     const [isScraping, setIsScraping] = useState(false);
     const [searchResultCount, setSearchResultCount] = useState<number | null>(null);
 
@@ -36,28 +39,35 @@ export function OffersListBuilder({ onGenerate }: { onGenerate?: (offers: any[])
             });
     };
 
+    // Charger les offres au démarrage
     useEffect(() => {
         fetchJobs();
     }, []);
 
+    // Filtrage local instantané quand les filtres changent
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            fetchJobs();
+        }, 300); // Debounce 300ms
+        return () => clearTimeout(timer);
+    }, [keyword, location, contractType]);
+
+    // Le scraping est une action SÉPARÉE : va chercher de NOUVELLES offres sur le web
     const handleScrape = async () => {
-        if (!keyword.trim()) return;
+        if (!scrapeKeyword.trim()) return;
         setIsScraping(true);
-        setSearchResultCount(null); // Reset count during new search
+        setSearchResultCount(null);
         try {
             const res = await fetch("http://localhost:8000/api/scrape", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    keyword: keyword,
-                    location: location,
-                    contract_type: contractType
-                })
+                body: JSON.stringify({ keyword: scrapeKeyword })
             });
             const data = await res.json();
             if (data.status === "success") {
                 setSearchResultCount(data.new_offers_count);
-                fetchJobs(); // Rafraîchir la liste avec les nouvelles offres
+                // Mettre le mot-clé dans le filtre local pour voir les résultats
+                setKeyword(scrapeKeyword);
             }
         } catch (err) {
             console.error(err);
@@ -93,29 +103,70 @@ export function OffersListBuilder({ onGenerate }: { onGenerate?: (offers: any[])
                     <h2 className="text-3xl font-semibold text-white tracking-tight">Nouvelles Offres</h2>
                     <p className="text-gray-400 text-sm mt-2 max-w-lg">Sélectionnez jusqu'à 5 offres pertinentes. Notre moteur IA générera un lot de candidatures ultra-personnalisées pour chaque sélection.</p>
 
-                    {/* Real-time Scraping Bar with Advanced Filters */}
-                    <div className="mt-6 flex flex-col gap-4">
+                    {/* Section 1 : Scraping — Aller chercher de NOUVELLES offres */}
+                    <div className="mt-6 p-4 rounded-xl bg-gradient-to-r from-blue-500/5 to-indigo-500/5 border border-blue-500/10">
+                        <div className="flex items-center gap-2 mb-3">
+                            <RefreshCcw className="w-3.5 h-3.5 text-blue-400" />
+                            <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">Actualiser depuis le web</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="relative flex-1">
+                                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                                <input
+                                    type="text"
+                                    placeholder="Mot-clé à scraper (ex: Data Engineer)"
+                                    value={scrapeKeyword}
+                                    onChange={(e) => setScrapeKeyword(e.target.value)}
+                                    className="w-full bg-[#050505] border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:border-blue-500/50 transition-colors"
+                                    onKeyDown={(e) => e.key === 'Enter' && handleScrape()}
+                                />
+                            </div>
+                            <button
+                                onClick={handleScrape}
+                                disabled={isScraping || !scrapeKeyword.trim()}
+                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${isScraping ? 'bg-blue-500/30 text-white/50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow-[0_0_15px_rgba(37,99,235,0.4)] cursor-pointer'}`}
+                            >
+                                {isScraping ? (
+                                    <><Loader2 className="w-4 h-4 animate-spin" /> Scraping...</>
+                                ) : (
+                                    <><RefreshCcw className="w-4 h-4" /> Actualiser</>
+                                )}
+                            </button>
+                        </div>
+                        {searchResultCount !== null && !isScraping && (
+                            <div className="mt-3 text-sm flex items-center gap-2 text-emerald-400 animate-in fade-in">
+                                <CheckCircle2 className="w-4 h-4" />
+                                <span><strong>{searchResultCount}</strong> nouvelle(s) offre(s) ajoutée(s) à la base.</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Section 2 : Filtres locaux — Recherche instantanée dans la base */}
+                    <div className="mt-4">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Filter className="w-3.5 h-3.5 text-gray-400" />
+                            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Filtrer les offres existantes</span>
+                            <span className="text-xs text-gray-500">({offers.length} résultats)</span>
+                        </div>
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="relative flex-1 min-w-[200px] max-w-xs">
                                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                                 <input
                                     type="text"
-                                    placeholder="Métier, mots-clés (ex: Data)"
+                                    placeholder="Filtrer par titre, entreprise..."
                                     value={keyword}
                                     onChange={(e) => setKeyword(e.target.value)}
                                     className="w-full bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:border-blue-500/50 transition-colors shadow-inner shadow-white/5"
-                                    onKeyDown={(e) => e.key === 'Enter' && handleScrape()}
                                 />
                             </div>
                             <div className="relative flex-1 min-w-[180px] max-w-xs">
                                 <MapPin className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
                                 <input
                                     type="text"
-                                    placeholder="Ville, Pays (ex: Paris)"
+                                    placeholder="Ville, Pays (ex: Lyon)"
                                     value={location}
                                     onChange={(e) => setLocation(e.target.value)}
                                     className="w-full bg-[#0a0a0a] border border-white/10 text-white text-sm rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:border-blue-500/50 transition-colors shadow-inner shadow-white/5"
-                                    onKeyDown={(e) => e.key === 'Enter' && handleScrape()}
                                 />
                             </div>
                             <div className="relative min-w-[150px]">
@@ -133,26 +184,7 @@ export function OffersListBuilder({ onGenerate }: { onGenerate?: (offers: any[])
                                     <option value="Freelance">Freelance</option>
                                 </select>
                             </div>
-                            <button
-                                onClick={handleScrape}
-                                disabled={isScraping || !keyword.trim()}
-                                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${isScraping ? 'bg-blue-500/50 text-white/50 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-500 hover:shadow-[0_0_15px_rgba(37,99,235,0.4)]'}`}
-                            >
-                                {isScraping ? (
-                                    <><Loader2 className="w-4 h-4 animate-spin" /> Recherche...</>
-                                ) : (
-                                    <>Lancer le Scraping</>
-                                )}
-                            </button>
                         </div>
-
-                        {/* Status Message */}
-                        {searchResultCount !== null && !isScraping && (
-                            <div className="text-sm flex items-center gap-2 animate-in fade-in slide-in-from-top-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-lg inline-flex self-start">
-                                <CheckCircle2 className="w-4 h-4" />
-                                <span><strong>{searchResultCount}</strong> nouvelle(s) offre(s) trouvée(s) et ajoutée(s).</span>
-                            </div>
-                        )}
                     </div>
                 </div>
 
