@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { CheckCircle2, ChevronRight, Briefcase, MapPin, Calendar, Building2, MousePointerClick, Search, Loader2 } from "lucide-react";
 
-export function OffersListBuilder() {
+export function OffersListBuilder({ onGenerate }: { onGenerate?: (offers: any[]) => void }) {
     const [offers, setOffers] = useState<any[]>([]);
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [loading, setLoading] = useState(true);
@@ -256,6 +256,12 @@ export function OffersListBuilder() {
                                 : "bg-gray-800 text-gray-500 cursor-not-allowed"}
             `}
                         disabled={selectedIds.length === 0}
+                        onClick={() => {
+                            if (onGenerate) {
+                                const selected = offers.filter(o => selectedIds.includes(o.id));
+                                onGenerate(selected);
+                            }
+                        }}
                     >
                         <span>Générer le lot</span>
                         <ChevronRight className="w-4 h-4" />
